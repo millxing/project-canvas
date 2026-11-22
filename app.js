@@ -706,9 +706,10 @@ async function importBackup(file){
  if(!file)return;try{
   if(file.size>100*1024*1024)throw new Error('Choose a backup smaller than 100 MB.');
   const imported=validate(JSON.parse(await file.text()));
-  // Merge backups by stable ID, keeping a newer local note when appropriate.
-  let count=0;for(const p of imported.projects){const local=project(p.id);if(!local){state.projects.push(p);count++;}else if(p.updated>local.updated){Object.assign(local,p);count++;}}
-  state.folders=[...new Set([...state.folders,...imported.folders])];if(selected)closeEditor();changed();toast(`Backup imported. ${count} project${count===1?'':'s'} added or updated.`);
+  const count=imported.projects.filter(p=>!p.deletedAt).length;
+  showDialog({title:'Replace everything with this backup?',message:`This clears your canvas, folders, and Trash, then loads ${count} project${count===1?'':'s'} from the backup. Export a backup first if you want to keep what you have now.`,confirmLabel:'Replace everything',danger:true,onConfirm:()=>{
+   state=imported;migrateHotZone();if(selected)closeEditor();view='canvas';query='';$('#search').value='';changed();refreshFolderPicker();toast(`Backup loaded. ${count} project${count===1?'':'s'} on your canvas.`);
+  }});
  }catch(error){toast(error instanceof SyntaxError?'This file isn’t a valid JSON backup.':error.message);}
 }
 $('#brand-icon').innerHTML=icon('layers');$('#search-icon').innerHTML=icon('search');$('#new-project').innerHTML=icon('plus')+'New project';$('#tidy').innerHTML=icon('tidy')+'Tidy canvas';$('#canvas-settings').innerHTML=icon('palette');$('#add-folder').innerHTML=icon('plus');$('#backup-button').innerHTML=icon('download')+'Backups & help';$('#zoom-out').innerHTML=icon('minus');$('#zoom-in').innerHTML=icon('plus');$('#sidebar-toggle').innerHTML=icon('menu');

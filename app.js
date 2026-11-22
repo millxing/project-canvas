@@ -724,7 +724,7 @@ $('#add-folder').onclick=()=>showDialog({title:'New folder',inputLabel:'Folder n
  const name=input.trim().slice(0,80);if(!name)return;if(state.folders.includes(name)){toast('That folder already exists.');return;}state.folders.push(name);changed();refreshFolderPicker();switchView('folder:'+name);
 }});
 $('#canvas-settings').onclick=e=>{const pop=$('#popover');pop.innerHTML='<h3>CANVAS COLOR</h3><div class="swatches">'+backgrounds.map(c=>`<button class="swatch ${state.background===c.value?'chosen':''}" style="background:${c.value}" data-background="${c.value}" aria-label="${c.name} canvas" title="${c.name}"></button>`).join('')+'</div>';pop.querySelectorAll('[data-background]').forEach(b=>b.onclick=()=>{state.background=b.dataset.background;closeMenu();changed();});positionMenu(e.currentTarget);};
-$('#backup-button').onclick=e=>menu(e.currentTarget,[['download','Export backup',exportBackup],['upload','Import backup',()=>$('#import-file').click()],null,['book','How this works',()=>window.open('README.html','_blank','noopener')]]);
+$('#backup-button').onclick=e=>menu(e.currentTarget,[['download','Export backup',exportBackup],['upload','Import backup',()=>$('#import-file').click()],null,['book','How this works',()=>window.open('help.html','_blank','noopener')]]);
 $('#import-file').onchange=async e=>{await importBackup(e.target.files[0]);e.target.value='';};
 $('#image-file').onchange=async e=>{await insertImages([...e.target.files]);e.target.value='';};
 document.addEventListener('pointerdown',e=>{if(!e.target.closest('#popover')&&!e.target.closest('[data-action="menu"]')&&!e.target.closest('#canvas-settings')&&!e.target.closest('#backup-button')&&!e.target.closest('#editor-menu'))closeMenu();});

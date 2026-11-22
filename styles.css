@@ -49,3 +49,5 @@ body.dragging .hot-grip{cursor:grabbing}
 .hot-handle-x{position:absolute;top:24px;bottom:24px;right:-6px;width:10px;cursor:ew-resize;pointer-events:auto;z-index:2}
 .hot-handle-x::after{content:"";position:absolute;top:50%;left:3px;height:26px;width:3px;margin-top:-13px;border-radius:2px;background:#d98a1c66}
 .hot-handle:hover::after,.hot-handle:focus-visible::after,.hot-handle-x:hover::after,.hot-handle-x:focus-visible::after{background:#d98a1c}
+
+#canvas-viewport{isolation:isolate}

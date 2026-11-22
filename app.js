@@ -45,7 +45,7 @@ const escape = value => String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<
 const colors = [{name:'Rose',value:'#f9dcd9'},{name:'Butter',value:'#fff0bd'},{name:'Sage',value:'#dfeee2'},{name:'Sky',value:'#dce9fa'},{name:'Lilac',value:'#e9e1f8'},{name:'Paper',value:'#f9f9fb'}];
 const backgrounds = [{name:'Mist',value:'#eef2f5'},{name:'Lavender',value:'#f0edf5'},{name:'Sage',value:'#edf2ed'},{name:'Sand',value:'#f3f0e9'},{name:'Rose',value:'#f5edef'}];
 let state, db, selected=null, view='canvas', query='', toastTimer, lastUndo=null, editorRange=null;
-let zoom=1, grid=window.innerWidth<1000, saveVersion=0, savedVersion=0, saveRunning=false, geometry=null;
+let autoZoom=null, zoom=1, grid=window.innerWidth<1000, saveVersion=0, savedVersion=0, saveRunning=false, geometry=null;
 const STORAGE_KEY='project-canvas-v1';
 /* Hot zone: a movable, resizable rectangle marking projects being worked on now. Everything snaps to a 20px grid. */
 const GRID=20, HOT_MIN_W=360, HOT_MIN_H=160, HOT_PAD=20;
@@ -671,9 +671,9 @@ function openEditor(id){
   editor.querySelectorAll('[data-color],.note-body input[type="checkbox"]').forEach(b=>b.disabled=true);
   $('.editor-footnote',editor).textContent='This project is in Trash. Restore it from the project menu to edit.';
  }
- if(!grid && window.innerWidth>960){const list=filtered();const width=Math.max(1,...list.map(p=>p.x+p.width))+40;const available=$('#canvas-viewport').clientWidth;if(width*zoom>available)setZoom(Math.min(zoom,available/width));}
+ if(!grid && window.innerWidth>960){const list=filtered();const width=Math.max(1,...list.map(p=>p.x+p.width))+40;const available=$('#canvas-viewport').clientWidth;if(width*zoom>available){if(autoZoom===null)autoZoom={from:zoom,to:zoom};setZoom(Math.min(zoom,available/width));autoZoom.to=zoom;}}
 }
-function closeEditor(){document.body.classList.remove('editing');selected=null;$('#editor-divider').hidden=true;$('#editor').hidden=true;$('#editor').innerHTML='';editorRange=null;renderCanvas();}
+function closeEditor(){document.body.classList.remove('editing');selected=null;if(autoZoom){const back=autoZoom;autoZoom=null;if(zoom===back.to&&back.from>zoom){zoom=back.from;$('#zoom-value').textContent=Math.round(zoom*100)+'%';}}$('#editor-divider').hidden=true;$('#editor').hidden=true;$('#editor').innerHTML='';editorRange=null;renderCanvas();}
 function rememberRange(){const sel=window.getSelection();editorRange=sel.rangeCount&&$('#note-body').contains(sel.anchorNode)?sel.getRangeAt(0).cloneRange():null;}
 async function imageData(file){
  if(file.size>25*1024*1024)throw new Error('Choose an image smaller than 25 MB.');

@@ -45,7 +45,7 @@ const escape = value => String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<
 const colors = [{name:'Rose',value:'#f9dcd9'},{name:'Butter',value:'#fff0bd'},{name:'Sage',value:'#dfeee2'},{name:'Sky',value:'#dce9fa'},{name:'Lilac',value:'#e9e1f8'},{name:'Paper',value:'#f9f9fb'}];
 const backgrounds = [{name:'Mist',value:'#eef2f5'},{name:'Lavender',value:'#f0edf5'},{name:'Sage',value:'#edf2ed'},{name:'Sand',value:'#f3f0e9'},{name:'Rose',value:'#f5edef'}];
 let state, db, selected=null, view='canvas', query='', toastTimer, lastUndo=null, editorRange=null;
-let autoZoom=null, zoom=1, grid=window.innerWidth<1000, saveVersion=0, savedVersion=0, saveRunning=false, geometry=null;
+let zoom=1, grid=window.innerWidth<1000, saveVersion=0, savedVersion=0, saveRunning=false, geometry=null;
 const STORAGE_KEY='project-canvas-v1';
 /* Hot zone: a movable, resizable rectangle marking projects being worked on now. Everything snaps to a 20px grid. */
 const GRID=20, HOT_MIN_W=360, HOT_MIN_H=160, HOT_PAD=20;
@@ -364,38 +364,8 @@ function filtered(){
 function plain(html){const d=document.createElement('div');d.innerHTML=html;return d.textContent||'';}
 function date(ts){return new Date(ts).toLocaleDateString(undefined,{month:'short',day:'numeric'});}
 function render(){
- document.documentElement.style.setProperty('--canvas',state.background);applyEditorWidth();renderSidebar();renderCanvas();
+ document.documentElement.style.setProperty('--canvas',state.background);renderSidebar();renderCanvas();
 }
-function editorWidthBounds(){
- const sidebar=$('#sidebar').getBoundingClientRect().width;
- return {min:320,max:Math.max(320,Math.min(900,window.innerWidth-sidebar-320))};
-}
-function applyEditorWidth(preferred=state.editorWidth||410){
- const {min,max}=editorWidthBounds();const width=Math.round(Math.max(min,Math.min(max,preferred)));
- document.documentElement.style.setProperty('--editor-width',width+'px');
- const divider=$('#editor-divider');divider.setAttribute('aria-valuemin',min);divider.setAttribute('aria-valuemax',max);divider.setAttribute('aria-valuenow',width);divider.setAttribute('aria-valuetext',`Note width ${width} pixels`);
- return width;
-}
-function saveEditorWidth(width){state.editorWidth=applyEditorWidth(width);markDirty();}
-const divider=$('#editor-divider');
-divider.onpointerdown=e=>{
- if(e.button!==0||window.innerWidth<=960)return;
- e.preventDefault();closeMenu();const startX=e.clientX,startWidth=$('#editor').getBoundingClientRect().width;
- let width=startWidth,finished=false;
- divider.setPointerCapture(e.pointerId);document.body.classList.add('resizing-editor');
- divider.onpointermove=event=>{width=applyEditorWidth(startWidth+startX-event.clientX);};
- const finish=()=>{
-  if(finished)return;finished=true;divider.onpointermove=null;divider.onpointerup=null;divider.onpointercancel=null;divider.onlostpointercapture=null;
-  document.body.classList.remove('resizing-editor');saveEditorWidth(width);
- };
- divider.onpointerup=finish;divider.onpointercancel=finish;divider.onlostpointercapture=finish;
-};
-divider.onkeydown=e=>{
- const current=Number(divider.getAttribute('aria-valuenow'));const step=e.shiftKey?50:20;
- const widths={ArrowLeft:current+step,ArrowRight:current-step,Home:410,End:editorWidthBounds().max};
- if(Object.hasOwn(widths,e.key)){e.preventDefault();saveEditorWidth(widths[e.key]);}
-};
-divider.ondblclick=()=>saveEditorWidth(410);
 function renderSidebar(){
  const navs=[['canvas','canvas','Canvas',activeProjects().filter(p=>p.onCanvas).length],['all','book','All projects',activeProjects().length],['archive','archive','Archive',state.projects.filter(p=>p.archived&&!p.deletedAt).length],['trash','trash','Trash',state.projects.filter(p=>p.deletedAt).length]];
  $('#navigation').innerHTML=navs.map(([key,ic,label,n])=>`<button class="nav-item ${view===key?'active':''}" data-view="${key}">${icon(ic)}${label}<span class="count">${n}</span></button>`).join('');
@@ -592,7 +562,7 @@ function createProject(){
  const title=$('#editor-title');title.focus();const range=document.createRange();range.selectNodeContents(title);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);
 }
 function cardMenu(id,anchor){
- const p=project(id);if(p.deletedAt){menu(anchor,[['restore','Restore project',()=>restoreProject(id)],null,['trash','Delete permanently…',()=>permanentlyDelete([id]),'danger']]);return;}const entries=[['edit','Open & edit',()=>openEditor(id)],['bulb',p.hot?'Remove from hot zone':'Add to hot zone',()=>toggleHot(p)],['copy','Duplicate',()=>{const clone={...structuredClone(p),id:crypto.randomUUID(),title:p.title+' copy',x:p.x+28,y:p.y+28,z:nextZ(),created:Date.now(),updated:Date.now(),archived:false,onCanvas:true};state.projects.push(clone);changed();toast('Project duplicated.');}],null,
+ const p=project(id);if(p.deletedAt){menu(anchor,[['restore','Restore project',()=>restoreProject(id)],null,['trash','Delete permanently…',()=>permanentlyDelete([id]),'danger']]);return;}const entries=[selected===id?['upload','Import Bear note',()=>$('#bear-import').click()]:['edit','Open & edit',()=>openEditor(id)],['bulb',p.hot?'Remove from hot zone':'Add to hot zone',()=>toggleHot(p)],['copy','Duplicate',()=>{const clone={...structuredClone(p),id:crypto.randomUUID(),title:p.title+' copy',x:p.x+28,y:p.y+28,z:nextZ(),created:Date.now(),updated:Date.now(),archived:false,onCanvas:true};state.projects.push(clone);changed();toast('Project duplicated.');}],null,
  ...(p.archived?[['restore','Restore project',()=>{p.archived=false;p.onCanvas=true;changed();closeEditor();toast('Project restored.');}]]:[['remove',p.onCanvas?'Remove from canvas':'Show on canvas',()=>{p.onCanvas=!p.onCanvas;changed();toast(p.onCanvas?'Project is on the canvas.':'Project kept in All projects.');}],['archive','Archive project',()=>{p.archived=true;changed();if(selected===id)closeEditor();toast('Project archived.');}]]),null,
  [grid?'up':'layers',grid?'Move earlier':'Bring to front',()=>{if(grid)moveOrder(p,-1);else{p.z=nextZ();changed();}}],
  [grid?'down':'layers',grid?'Move later':'Send to back',()=>{if(grid)moveOrder(p,1);else{const ordered=[p,...state.projects.filter(x=>x.id!==p.id).sort((a,b)=>a.z-b.z)];ordered.forEach((x,i)=>x.z=i+1);changed();}}],null,
@@ -634,10 +604,35 @@ function menu(anchor,entries){
 }
 function positionMenu(anchor){const pop=$('#popover');pop.hidden=false;const rect=anchor.getBoundingClientRect();pop.style.left=Math.max(8,Math.min(rect.left,window.innerWidth-pop.offsetWidth-12))+'px';pop.style.top=Math.max(8,Math.min(rect.bottom+7,window.innerHeight-pop.offsetHeight-12))+'px';}
 function closeMenu(){$('#popover').hidden=true;}
+const editorWindow=$('#editor-window');
+editorWindow.addEventListener('click',event=>{
+ if(event.target===editorWindow)closeEditor();
+});
+editorWindow.addEventListener('cancel',event=>{
+ event.preventDefault();
+ closeEditor();
+});
+function editorSource(id){
+ const container=$('#canvas').hidden?$('#collection'):$('#canvas');
+ return container.querySelector(`[data-id="${CSS.escape(id)}"]`);
+}
+function expandEditor(editor,source){
+ if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+ const target=editor.getBoundingClientRect();
+ const visible=source && source.width && source.height && source.right>0 && source.bottom>0 && source.left<innerWidth && source.top<innerHeight;
+ const transform=visible
+  ? `translate(${source.left-target.left}px, ${source.top-target.top}px) scale(${source.width/target.width}, ${source.height/target.height})`
+  : 'translateY(10px)';
+ editor.animate([{transform,opacity:visible?1:0},{transform:'none',opacity:1}],{duration:260,easing:'cubic-bezier(.2,.75,.2,1)'});
+}
 function openEditor(id){
- document.body.classList.add('editing');selected=id;const p=project(id);if(!p)return;closeMenu();renderCanvas();
- $('#editor-divider').hidden=false;applyEditorWidth();
- const editor=$('#editor');editor.hidden=false;editor.innerHTML=`<div class="editor-header" style="--note-color:${p.color}"><div class="editor-top"><span>${icon(p.icon)} &nbsp; PROJECT NOTE</span><div class="editor-tools"><button class="icon-button" id="editor-menu" aria-label="Project actions">${icon('more')}</button><button class="icon-button" id="close-editor" aria-label="Close project">${icon('close')}</button></div></div><div class="editor-title" id="editor-title" contenteditable="true" role="textbox" aria-label="Project title" data-placeholder="Untitled project">${escape(p.title)}</div><div class="editor-subtitle" id="editor-subtitle" contenteditable="true" role="textbox" aria-label="Project subheading" data-placeholder="Add a short description…">${escape(p.subtitle)}</div></div><div class="editor-meta"><select id="project-folder" aria-label="Project folder"><option value="">Unfiled</option>${state.folders.map(f=>`<option ${p.folder===f?'selected':''} value="${escape(f)}">${escape(f)}</option>`).join('')}</select><div class="swatches" aria-label="Project color">${colors.map(c=>`<button class="swatch ${c.value===p.color?'chosen':''}" style="background:${c.value}" data-color="${c.value}" title="${c.name}" aria-label="${c.name} card color" aria-pressed="${c.value===p.color}"></button>`).join('')}</div></div><div class="editor-toolbar" role="toolbar" aria-label="Note formatting"><button class="icon-button" data-command="bold" title="Bold" aria-label="Bold">${icon('bold')}</button><button class="icon-button" data-command="italic" title="Italic" aria-label="Italic">${icon('italic')}</button><span></span><button class="icon-button" data-command="heading" title="Heading" aria-label="Heading">${icon('heading')}</button><button class="icon-button" data-command="paragraph" title="Paragraph" aria-label="Paragraph">${icon('text')}</button><button class="icon-button" data-command="insertUnorderedList" title="Bullet list" aria-label="Bullet list">${icon('list')}</button><button class="icon-button" data-command="checklist" title="Checklist" aria-label="Checklist">${icon('checklist')}</button><span></span><button class="icon-button" id="add-image" title="Add images" aria-label="Add images">${icon('image')}</button><button class="icon-button" id="add-link" title="Insert or edit link" aria-label="Insert or edit link">${icon('link')}</button><button class="icon-button" id="remove-link" title="Remove link" aria-label="Remove link">${icon('unlink')}</button><button class="icon-button" id="add-video" title="Embed YouTube video" aria-label="Embed YouTube video">${icon('video')}</button></div><div class="note-body" id="note-body" contenteditable="true" role="textbox" aria-label="Project notes" aria-multiline="true" data-placeholder="Start with a thought. Add notes, bullets, and images…">${p.html}</div><div class="editor-footnote">Changes save automatically on this browser.</div>`;
+ const p=project(id);
+ if(!p)return;
+ const opening=!editorWindow.open;
+ const source=opening?editorSource(id)?.getBoundingClientRect():null;
+ selected=id;closeMenu();renderCanvas();
+ const editor=$('#editor');
+ editor.innerHTML=`<div class="editor-header" style="--note-color:${p.color}"><div class="editor-top"><span>${icon(p.icon)} &nbsp; PROJECT NOTE</span><div class="editor-tools"><button class="icon-button" id="editor-menu" aria-label="Project actions">${icon('more')}</button><button class="icon-button" id="close-editor" aria-label="Close project">${icon('close')}</button></div></div><div class="editor-title" id="editor-title" contenteditable="true" role="textbox" aria-label="Project title" data-placeholder="Untitled project">${escape(p.title)}</div><div class="editor-subtitle" id="editor-subtitle" contenteditable="true" role="textbox" aria-label="Project subheading" data-placeholder="Add a short description…">${escape(p.subtitle)}</div></div><div class="editor-meta"><select id="project-folder" aria-label="Project folder"><option value="">Unfiled</option>${state.folders.map(f=>`<option ${p.folder===f?'selected':''} value="${escape(f)}">${escape(f)}</option>`).join('')}</select><div class="swatches" aria-label="Project color">${colors.map(c=>`<button class="swatch ${c.value===p.color?'chosen':''}" style="background:${c.value}" data-color="${c.value}" title="${c.name}" aria-label="${c.name} card color" aria-pressed="${c.value===p.color}"></button>`).join('')}</div></div><div class="editor-toolbar" role="toolbar" aria-label="Note formatting"><button class="icon-button" data-command="bold" title="Bold" aria-label="Bold">${icon('bold')}</button><button class="icon-button" data-command="italic" title="Italic" aria-label="Italic">${icon('italic')}</button><span></span><button class="icon-button" data-command="heading" title="Heading" aria-label="Heading">${icon('heading')}</button><button class="icon-button" data-command="paragraph" title="Paragraph" aria-label="Paragraph">${icon('text')}</button><button class="icon-button" data-command="insertUnorderedList" title="Bullet list" aria-label="Bullet list">${icon('list')}</button><button class="icon-button" data-command="checklist" title="Checklist" aria-label="Checklist">${icon('checklist')}</button><span></span><button class="icon-button" id="add-image" title="Add images" aria-label="Add images">${icon('image')}</button><button class="icon-button" id="add-link" title="Insert or edit link" aria-label="Insert or edit link">${icon('link')}</button><button class="icon-button" id="remove-link" title="Remove link" aria-label="Remove link">${icon('unlink')}</button><button class="icon-button" id="add-video" title="Embed YouTube video" aria-label="Embed YouTube video">${icon('video')}</button></div><div class="note-body" id="note-body" contenteditable="true" role="textbox" aria-label="Project notes" aria-multiline="true" data-placeholder="Start with a thought. Add notes, bullets, and images…">${p.html}</div><div class="editor-footnote">Changes save automatically on this browser.</div>`;
  $('#close-editor').onclick=closeEditor;$('#editor-menu').onclick=e=>cardMenu(id,e.currentTarget);
  const update=()=>{normalizeChecklists($('#note-body'));hydrateNoteMedia($('#note-body'),!!p.deletedAt);p.title=$('#editor-title').textContent.slice(0,500);p.subtitle=$('#editor-subtitle').textContent.slice(0,4000);p.html=sanitize($('#note-body').innerHTML);p.updated=Date.now();markDirty();renderCanvas();};
  $('#editor-title').oninput=update;$('#editor-subtitle').oninput=update;$('#note-body').oninput=update;
@@ -671,9 +666,30 @@ function openEditor(id){
   editor.querySelectorAll('[data-color],.note-body input[type="checkbox"]').forEach(b=>b.disabled=true);
   $('.editor-footnote',editor).textContent='This project is in Trash. Restore it from the project menu to edit.';
  }
- if(!grid && window.innerWidth>960){const list=filtered();const width=Math.max(1,...list.map(p=>p.x+p.width))+40;const available=$('#canvas-viewport').clientWidth;if(width*zoom>available){if(autoZoom===null)autoZoom={from:zoom,to:zoom};setZoom(Math.min(zoom,available/width));autoZoom.to=zoom;}}
+ if(opening){
+  editorWindow.append($('#popover'),$('#toast'));
+  const importer=$('#bear-dialog');
+  const importing=importer.open;
+  if(importing)importer.close();
+  editorWindow.showModal();
+  if(importing)importer.showModal();
+  expandEditor(editor,source);
+ }
+ editor.scrollTop=0;
+ $('#close-editor').focus({preventScroll:true});
 }
-function closeEditor(){document.body.classList.remove('editing');selected=null;if(autoZoom){const back=autoZoom;autoZoom=null;if(zoom===back.to&&back.from>zoom){zoom=back.from;$('#zoom-value').textContent=Math.round(zoom*100)+'%';}}$('#editor-divider').hidden=true;$('#editor').hidden=true;$('#editor').innerHTML='';editorRange=null;renderCanvas();}
+function closeEditor(){
+ if(!editorWindow.open)return;
+ const id=selected;
+ closeMenu();
+ editorWindow.close();
+ document.body.append($('#popover'),$('#toast'));
+ selected=null;
+ editorRange=null;
+ $('#editor').replaceChildren();
+ renderCanvas();
+ (editorSource(id)||$('#new-project')).focus({preventScroll:true});
+}
 function rememberRange(){const sel=window.getSelection();editorRange=sel.rangeCount&&$('#note-body').contains(sel.anchorNode)?sel.getRangeAt(0).cloneRange():null;}
 async function imageData(file){
  if(file.size>25*1024*1024)throw new Error('Choose an image smaller than 25 MB.');
@@ -731,11 +747,11 @@ document.addEventListener('pointerdown',e=>{if(!e.target.closest('#popover')&&!e
 document.addEventListener('keydown',e=>{
  if(e.key==='Escape'&&($('#action-dialog').open||$('#bear-dialog')?.open))return;
  if(e.key==='Escape'&&!$('#popover').hidden){e.preventDefault();closeMenu();return;}
- if(e.key==='Escape'){closeMenu();if(selected)closeEditor();$('#sidebar').classList.remove('open');}
- if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();$('#search').focus();}
+ if(e.key==='Escape'){closeMenu();if(selected){e.preventDefault();closeEditor();}$('#sidebar').classList.remove('open');}
+ if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();if(selected)closeEditor();$('#search').focus();}
  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='s'){e.preventDefault();persist();toast('Your changes save automatically.');}
  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='z'&&!e.target.closest('input,[contenteditable]')&&lastUndo){e.preventDefault();restoreProject(lastUndo);}
 });
 document.addEventListener('visibilitychange',()=>{if(document.hidden)persist();});
-window.addEventListener('resize',()=>{closeMenu();if(state)applyEditorWidth();});
+window.addEventListener('resize',closeMenu);
 boot();

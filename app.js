@@ -112,7 +112,7 @@ function videoPlaceholder(id,doc=document){
  const el=doc.createElement('div');el.setAttribute('data-youtube',id);el.setAttribute('contenteditable','false');el.textContent='YouTube video';return el;
 }
 function hydrateNoteMedia(body,readOnly=false){
- body.querySelectorAll('img').forEach(img=>{img.tabIndex=0;img.draggable=false;img.title='Click or right-click for image actions. Drag to move.';});
+ body.querySelectorAll('img').forEach(img=>{img.tabIndex=0;img.draggable=false;img.title=img.hasAttribute('data-drawing')&&!readOnly?'Open drawing. Right-click for image actions.':'Click or right-click for image actions. Drag to move.';});
  body.querySelectorAll('a[href]').forEach(a=>{const url=safeLink(a.getAttribute('href'));if(url){a.href=url;a.target='_blank';a.rel='noopener noreferrer';a.title='Open link in a new tab';}else a.removeAttribute('href');});
  body.querySelectorAll('[data-youtube]').forEach(wrapper=>{
   const id=wrapper.getAttribute('data-youtube');if(!/^[a-zA-Z0-9_-]{11}$/.test(id)||wrapper.dataset.videoReady)return;
@@ -236,6 +236,7 @@ function sanitize(html){
    const href=child.getAttribute('href'),src=child.getAttribute('src'),alt=child.getAttribute('alt');
    const checklist=child.tagName==='UL'&&child.getAttribute('data-checklist')==='true';
    const taskText=child.tagName==='SPAN'&&child.hasAttribute('data-task-text');
+   const drawing=child.tagName==='IMG' && child.getAttribute('data-drawing');
    const checked=child.tagName==='INPUT'&&child.hasAttribute('checked');
    const start=child.tagName==='OL'?child.getAttribute('start'):null;
    const colspan=['TD','TH'].includes(child.tagName)?child.getAttribute('colspan'):null;
@@ -248,7 +249,7 @@ function sanitize(html){
    if(child.tagName==='INPUT'){child.setAttribute('type','checkbox');child.setAttribute('contenteditable','false');if(checked)child.setAttribute('checked','');}
    if(child.tagName==='A' && safeLink(href)){child.setAttribute('href',safeLink(href));child.setAttribute('target','_blank');child.setAttribute('rel','noopener noreferrer');}
    if(child.tagName==='IMG'){
-    if(src && /^data:image\/(png|jpeg|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(src)){child.setAttribute('src',src);child.setAttribute('alt',alt||'Project reference');}else child.remove();
+    if(src && /^data:image\/(png|jpeg|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(src)){child.setAttribute('src',src);if(drawing)child.setAttribute('data-drawing',drawing);child.setAttribute('alt',alt||'Project reference');}else child.remove();
    }
   }
  }
@@ -632,12 +633,13 @@ function openEditor(id){
  const source=opening?editorSource(id)?.getBoundingClientRect():null;
  selected=id;closeMenu();renderCanvas();
  const editor=$('#editor');
- editor.innerHTML=`<div class="editor-header" style="--note-color:${p.color}"><div class="editor-top"><span>${icon(p.icon)} &nbsp; PROJECT NOTE</span><div class="editor-tools"><button class="icon-button" id="editor-menu" aria-label="Project actions">${icon('more')}</button><button class="icon-button" id="close-editor" aria-label="Close project">${icon('close')}</button></div></div><div class="editor-title" id="editor-title" contenteditable="true" role="textbox" aria-label="Project title" data-placeholder="Untitled project">${escape(p.title)}</div><div class="editor-subtitle" id="editor-subtitle" contenteditable="true" role="textbox" aria-label="Project subheading" data-placeholder="Add a short description…">${escape(p.subtitle)}</div></div><div class="editor-meta"><select id="project-folder" aria-label="Project folder"><option value="">Unfiled</option>${state.folders.map(f=>`<option ${p.folder===f?'selected':''} value="${escape(f)}">${escape(f)}</option>`).join('')}</select><div class="swatches" aria-label="Project color">${colors.map(c=>`<button class="swatch ${c.value===p.color?'chosen':''}" style="background:${c.value}" data-color="${c.value}" title="${c.name}" aria-label="${c.name} card color" aria-pressed="${c.value===p.color}"></button>`).join('')}</div></div><div class="editor-toolbar" role="toolbar" aria-label="Note formatting"><button class="icon-button" data-command="bold" title="Bold" aria-label="Bold">${icon('bold')}</button><button class="icon-button" data-command="italic" title="Italic" aria-label="Italic">${icon('italic')}</button><span></span><button class="icon-button" data-command="heading" title="Heading" aria-label="Heading">${icon('heading')}</button><button class="icon-button" data-command="paragraph" title="Paragraph" aria-label="Paragraph">${icon('text')}</button><button class="icon-button" data-command="insertUnorderedList" title="Bullet list" aria-label="Bullet list">${icon('list')}</button><button class="icon-button" data-command="checklist" title="Checklist" aria-label="Checklist">${icon('checklist')}</button><span></span><button class="icon-button" id="add-image" title="Add images" aria-label="Add images">${icon('image')}</button><button class="icon-button" id="add-link" title="Insert or edit link" aria-label="Insert or edit link">${icon('link')}</button><button class="icon-button" id="remove-link" title="Remove link" aria-label="Remove link">${icon('unlink')}</button><button class="icon-button" id="add-video" title="Embed YouTube video" aria-label="Embed YouTube video">${icon('video')}</button></div><div class="note-body" id="note-body" contenteditable="true" role="textbox" aria-label="Project notes" aria-multiline="true" data-placeholder="Start with a thought. Add notes, bullets, and images…">${p.html}</div><div class="editor-footnote">Changes save automatically on this browser.</div>`;
+ editor.innerHTML=`<div class="editor-header" style="--note-color:${p.color}"><div class="editor-top"><span>${icon(p.icon)} &nbsp; PROJECT NOTE</span><div class="editor-tools"><button class="icon-button" id="editor-menu" aria-label="Project actions">${icon('more')}</button><button class="icon-button" id="close-editor" aria-label="Close project">${icon('close')}</button></div></div><div class="editor-title" id="editor-title" contenteditable="true" role="textbox" aria-label="Project title" data-placeholder="Untitled project">${escape(p.title)}</div><div class="editor-subtitle" id="editor-subtitle" contenteditable="true" role="textbox" aria-label="Project subheading" data-placeholder="Add a short description…">${escape(p.subtitle)}</div></div><div class="editor-meta"><select id="project-folder" aria-label="Project folder"><option value="">Unfiled</option>${state.folders.map(f=>`<option ${p.folder===f?'selected':''} value="${escape(f)}">${escape(f)}</option>`).join('')}</select><div class="swatches" aria-label="Project color">${colors.map(c=>`<button class="swatch ${c.value===p.color?'chosen':''}" style="background:${c.value}" data-color="${c.value}" title="${c.name}" aria-label="${c.name} card color" aria-pressed="${c.value===p.color}"></button>`).join('')}</div></div><div class="editor-toolbar" role="toolbar" aria-label="Note formatting"><button class="icon-button" data-command="bold" title="Bold" aria-label="Bold">${icon('bold')}</button><button class="icon-button" data-command="italic" title="Italic" aria-label="Italic">${icon('italic')}</button><span></span><button class="icon-button" data-command="heading" title="Heading" aria-label="Heading">${icon('heading')}</button><button class="icon-button" data-command="paragraph" title="Paragraph" aria-label="Paragraph">${icon('text')}</button><button class="icon-button" data-command="insertUnorderedList" title="Bullet list" aria-label="Bullet list">${icon('list')}</button><button class="icon-button" data-command="checklist" title="Checklist" aria-label="Checklist">${icon('checklist')}</button><span></span><button class="quiet" id="add-drawing" title="Insert an editable drawing">${icon('edit')}Draw</button><button class="icon-button" id="add-image" title="Add images" aria-label="Add images">${icon('image')}</button><button class="icon-button" id="add-link" title="Insert or edit link" aria-label="Insert or edit link">${icon('link')}</button><button class="icon-button" id="remove-link" title="Remove link" aria-label="Remove link">${icon('unlink')}</button><button class="icon-button" id="add-video" title="Embed YouTube video" aria-label="Embed YouTube video">${icon('video')}</button></div><div class="note-body" id="note-body" contenteditable="true" role="textbox" aria-label="Project notes" aria-multiline="true" data-placeholder="Start with a thought. Add notes, bullets, and images…">${p.html}</div><div class="editor-footnote">Changes save automatically on this browser.</div>`;
  $('#close-editor').onclick=closeEditor;$('#editor-menu').onclick=e=>cardMenu(id,e.currentTarget);
  const update=()=>{normalizeChecklists($('#note-body'));hydrateNoteMedia($('#note-body'),!!p.deletedAt);p.title=$('#editor-title').textContent.slice(0,500);p.subtitle=$('#editor-subtitle').textContent.slice(0,4000);p.html=sanitize($('#note-body').innerHTML);p.updated=Date.now();markDirty();renderCanvas();};
  $('#editor-title').oninput=update;$('#editor-subtitle').oninput=update;$('#note-body').oninput=update;
  $('#note-body').onkeydown=e=>{
   const body=$('#note-body');if(e.target.tagName==='IMG'){
+   if(e.key==='Enter'&&e.target.dataset.drawing&&!p.deletedAt){e.preventDefault();draw(e.target);return;}
    if(['Enter','ContextMenu'].includes(e.key)||(e.shiftKey&&e.key==='F10')){e.preventDefault();noteImageMenu(e.target,body,update,!!p.deletedAt);return;}
    if(!p.deletedAt&&['Backspace','Delete'].includes(e.key)){e.preventDefault();deleteNoteImage(e.target,body,update);return;}
   }
@@ -653,11 +655,31 @@ function openEditor(id){
  $('#add-link').onmousedown=e=>e.preventDefault();$('#add-link').onclick=()=>editNoteLink($('#note-body'),update);
  $('#remove-link').onmousedown=e=>e.preventDefault();$('#remove-link').onclick=()=>{$('#note-body').focus();document.execCommand('unlink');update();};
  $('#add-video').onmousedown=e=>e.preventDefault();$('#add-video').onclick=()=>insertYouTube($('#note-body'),update);
+ const draw=img=>{
+  const body=$('#note-body');
+  rememberRange();
+  const range=editorRange?.cloneRange();
+  openDrawing(img,(preview,scene)=>{
+   if(selected!==id||!body.isConnected||p.deletedAt)return false;
+   const image=img||document.createElement('img');
+   image.src=preview;
+   image.alt='Project drawing';
+   image.dataset.drawing=JSON.stringify(scene);
+   if(!img){
+    restoreNoteRange(body,range);
+    if(!document.execCommand('insertHTML',false,image.outerHTML))return false;
+   }
+   update();
+   return true;
+  });
+ };
+ $('#add-drawing').onmousedown=e=>e.preventDefault();
+ $('#add-drawing').onclick=()=>draw(null);
  $('#add-image').onmousedown=e=>e.preventDefault();$('#add-image').onclick=()=>{rememberRange();$('#image-file').click();};
  $('#note-body').onpaste=async e=>{e.preventDefault();if(p.deletedAt)return;const files=[...e.clipboardData.files].filter(f=>f.type.startsWith('image/'));if(files.length){rememberRange();await insertImages(files);return;}const html=e.clipboardData.getData('text/html');if(html)document.execCommand('insertHTML',false,sanitize(html));else document.execCommand('insertText',false,e.clipboardData.getData('text/plain'));update();};
  $('#note-body').ondrop=async e=>{e.preventDefault();if(p.deletedAt)return;const files=[...e.dataTransfer.files].filter(f=>f.type.startsWith('image/'));if(files.length){$('#note-body').focus();editorRange=null;await insertImages(files);}else toast('Use paste to insert text into your note.');};
  $('#note-body').ondragover=e=>e.preventDefault();
- $('#note-body').addEventListener('click',e=>{if(e.target.tagName==='IMG'){e.preventDefault();if(e.target.dataset.suppressClick)return;e.target.focus({preventScroll:true});noteImageMenu(e.target,$('#note-body'),update,!!p.deletedAt,e);return;}const remove=e.target.closest('[data-remove-video]');if(remove&&!p.deletedAt){e.preventDefault();remove.closest('[data-youtube]').remove();update();return;}const link=e.target.closest('a[href]');if(link){e.preventDefault();window.open(link.href,'_blank','noopener,noreferrer');}});
+ $('#note-body').addEventListener('click',e=>{if(e.target.tagName==='IMG'){e.preventDefault();if(e.target.dataset.suppressClick)return;if(e.target.dataset.drawing&&!p.deletedAt){draw(e.target);return;}e.target.focus({preventScroll:true});noteImageMenu(e.target,$('#note-body'),update,!!p.deletedAt,e);return;}const remove=e.target.closest('[data-remove-video]');if(remove&&!p.deletedAt){e.preventDefault();remove.closest('[data-youtube]').remove();update();return;}const link=e.target.closest('a[href]');if(link){e.preventDefault();window.open(link.href,'_blank','noopener,noreferrer');}});
  hydrateNoteMedia($('#note-body'),!!p.deletedAt);
  editorRange=null;
  if(p.deletedAt){
@@ -745,6 +767,7 @@ $('#import-file').onchange=async e=>{await importBackup(e.target.files[0]);e.tar
 $('#image-file').onchange=async e=>{await insertImages([...e.target.files]);e.target.value='';};
 document.addEventListener('pointerdown',e=>{if(!e.target.closest('#popover')&&!e.target.closest('[data-action="menu"]')&&!e.target.closest('#canvas-settings')&&!e.target.closest('#backup-button')&&!e.target.closest('#editor-menu'))closeMenu();});
 document.addEventListener('keydown',e=>{
+ if($('#drawing-window').open)return;
  if(e.key==='Escape'&&($('#action-dialog').open||$('#bear-dialog')?.open))return;
  if(e.key==='Escape'&&!$('#popover').hidden){e.preventDefault();closeMenu();return;}
  if(e.key==='Escape'){closeMenu();if(selected){e.preventDefault();closeEditor();}$('#sidebar').classList.remove('open');}

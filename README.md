@@ -13,6 +13,7 @@ Everything runs in your browser. There is no account, no server and no cloud syn
 - **Free canvas.** Drag a card by its header, resize it from the bottom-right corner, minimize it, or switch to a tidy grid layout. Cards snap to a 20px grid.
 - **Hot zone.** The amber box marks the projects you are working on now. Drag cards into it. It grows and shrinks to fit them. Move it with the tab on its top edge. Resize it with the thin handles on its bottom and right edges. In grid layout, use a card's menu: **Add to hot zone**.
 - **Notes.** Headings, bold, italic, lists, checklists, links, images and YouTube embeds.
+- **Drawings.** Use Draw in a note to open Excalidraw. Insert the whole sketch or selected objects. Click the preview to reopen the full sketch. Project backups include both.
 - **Organize.** Folders, search (Cmd/Ctrl K), Archive, and Trash with restore.
 - **Bear import.** Drag a note from Bear onto **Import Bear note**. Formatting and images come across as an independent copy. Your Bear original is not changed.
 - **Backups.** Export everything to one JSON file. Importing a backup replaces what is on your canvas, after a confirmation.

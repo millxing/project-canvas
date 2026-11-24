@@ -49,6 +49,7 @@ let zoom=1, grid=window.innerWidth<1000, saveVersion=0, savedVersion=0, saveRunn
 const STORAGE_KEY='project-canvas-v1';
 /* Hot zone: a movable, resizable rectangle marking projects being worked on now. Everything snaps to a 20px grid. */
 const GRID=20, HOT_MIN_W=360, HOT_MIN_H=160, HOT_PAD=20;
+const CARD_WIDTH=300, CARD_HEIGHT=240;
 const snap=v=>Math.round(v/GRID)*GRID;
 const cardH=p=>p.minimized?76:p.height;
 function hotCards(){return activeProjects().filter(p=>p.onCanvas&&p.hot);}
@@ -558,7 +559,7 @@ function nextZ(){return Math.max(0,...state.projects.map(p=>p.z))+1;}
 function changed(){markDirty();render();}
 function createProject(){
  const existing=activeProjects().filter(p=>p.onCanvas),offset=existing.length%5;
- const p={id:crypto.randomUUID(),title:'Untitled project',subtitle:'',html:'',folder:view.startsWith('folder:')?view.slice(7):'Work',color:colors[existing.length%colors.length].value,icon:'book',onCanvas:true,archived:false,minimized:false,x:40+offset*40,y:(state.hotZone?snap(zoneRect().y+zoneRect().h):0)+GRID*2+offset*GRID,width:280,height:220,z:nextZ(),created:Date.now(),updated:Date.now()};
+ const p={id:crypto.randomUUID(),title:'Untitled project',subtitle:'',html:'',folder:view.startsWith('folder:')?view.slice(7):'Work',color:colors[existing.length%colors.length].value,icon:'book',onCanvas:true,archived:false,minimized:false,x:40+offset*40,y:(state.hotZone?snap(zoneRect().y+zoneRect().h):0)+GRID*2+offset*GRID,width:CARD_WIDTH,height:CARD_HEIGHT,z:nextZ(),created:Date.now(),updated:Date.now()};
  if(!state.folders.includes(p.folder))p.folder='';state.projects.push(p);view='canvas';query='';$('#search').value='';changed();openEditor(p.id);$('#canvas-viewport').scrollTo(0,0);
  const title=$('#editor-title');title.focus();const range=document.createRange();range.selectNodeContents(title);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);
 }
@@ -728,8 +729,8 @@ function toast(message,action,label='Undo'){
 }
 function tidy(){
  if(view!=='canvas')return;const available=$('#canvas-viewport').clientWidth/zoom-76;
- const step=320,columns2=Math.max(1,Math.floor((available+20)/step)),z=state.hotZone;z.w=0;z.h=0;
- const layout=(list,left,top)=>{let rowY=top;for(let i=0;i<list.length;i+=columns2){const row=list.slice(i,i+columns2);row.forEach((p,j)=>{p.x=left+j*step;p.y=rowY;p.width=300;if(!p.minimized)p.height=240;});rowY+=Math.ceil((Math.max(...row.map(cardH))+GRID)/GRID)*GRID;}return rowY;};
+ const step=CARD_WIDTH+GRID,columns2=Math.max(1,Math.floor((available+20)/step)),z=state.hotZone;z.w=0;z.h=0;
+ const layout=(list,left,top)=>{let rowY=top;for(let i=0;i<list.length;i+=columns2){const row=list.slice(i,i+columns2);row.forEach((p,j)=>{p.x=left+j*step;p.y=rowY;p.width=CARD_WIDTH;if(!p.minimized)p.height=CARD_HEIGHT;});rowY+=Math.ceil((Math.max(...row.map(cardH))+GRID)/GRID)*GRID;}return rowY;};
  const sorted=[...filtered()].sort((a,b)=>a.z-b.z);
  layout(sorted.filter(p=>p.hot),z.x+HOT_PAD,z.y+HOT_PAD);const r=zoneRect();
  layout(sorted.filter(p=>!p.hot),40,snap(r.y+r.h)+GRID);

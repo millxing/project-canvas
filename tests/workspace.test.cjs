@@ -20,3 +20,21 @@ test('Permanent deletion requires confirmation and never removes active projects
 test('Folder rename preserves order and updates active, archived, and trashed assignments',()=>{const c=setup();c.deleteProject('a');c.view='folder:Work';c.window.prompt=()=> 'Client work';c.renameFolder('Work');assert.deepEqual([...c.state.folders],['Client work','Personal','Ideas']);assert.equal(c.project('a').folder,'Client work');assert.equal(c.project('b').folder,'Client work');assert.equal(c.view,'folder:Client work');});
 test('Folder name collisions and cancelled renames preserve data',()=>{const c=setup();c.window.prompt=()=> 'Personal';c.renameFolder('Work');assert.equal(c.state.folders[0],'Work');c.window.prompt=()=>null;c.renameFolder('Work');assert.equal(c.project('a').folder,'Work');});
 test('Reordering folders changes only their order',()=>{const c=setup();c.reorderFolder('Ideas',0);assert.deepEqual([...c.state.folders],['Ideas','Work','Personal']);assert.equal(c.project('a').folder,'Work');c.reorderFolder('Ideas',2);assert.deepEqual([...c.state.folders],['Work','Personal','Ideas']);});
+
+test('New project cards keep the same dimensions after tidying, inside and outside the hot zone',()=>{
+ const c=setup();
+ Object.assign(c,{zoom:1,crypto:require('node:crypto').webcrypto,openEditor(){},document:{createRange:()=>({selectNodeContents(){}})}});
+ c.window.getSelection=()=>({removeAllRanges(){},addRange(){}});
+ c.$=()=>({value:'',clientWidth:1200,scrollTo(){},focus(){}});
+ c.state.hotZone={x:40,y:20,w:0,h:0};
+ vm.runInContext(source.slice(source.indexOf('const GRID='),source.indexOf('function hotCards(')),c);
+ for(const name of ['hotCards','zoneRect','nextZ','createProject','tidy'])vm.runInContext(fn(name),c);
+ for(const hot of [false,true]){
+  c.createProject();
+  const p=c.state.projects.at(-1);p.hot=hot;
+  const before=[p.width,p.height];
+  c.tidy();
+  assert.deepEqual([p.width,p.height],before,'Tidy must not resize a new card');
+  assert.deepEqual(before,[300,240]);
+ }
+});
